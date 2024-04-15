@@ -40,25 +40,28 @@ fn input_gear_fn(s: f32) -> Vec2 {
 
 struct Gear {
     f: fn(f32) -> Vec2,
-    r: f32,
-    v1: f32,
-    v2: f32,
+    axle_separation: f32,
+    source_w: f32,
+    partner_w: f32,
 }
 
-fn draw_gear(gear: &Gear, t: f32, segments: u32, graphics: &mut Graphics2D) {
-    let theta = gear.v1 * t;
-    let theta2 = gear.v2 * t;
-    let mut vertices = vec![];
-    let segment_length = 1. / segments as f32;
-    for i in 0..segments {
-        let p = (gear.f)(i as f32 * segment_length);
-        let rotated_p = rotate(p, theta);
-        let translated_p = translate(rotated_p, gear.r);
-        let rotated_p2 = rotate(translated_p, theta2);
-        vertices.push(to_screen_space(rotated_p2));
+impl Gear {
+    fn draw(&self, t: f32, segments: u32, graphics: &mut Graphics2D) {
+        let rotation = self.source_w * t;
+        let revolution = self.partner_w * t;
+        let segment_length = 1. / segments as f32;
+
+        let mut vertices = vec![];
+        for i in 0..segments {
+            let p = (self.f)(i as f32 * segment_length);
+            let rotated_p = rotate(p, rotation);
+            let translated_p = translate(rotated_p, self.axle_separation);
+            let rotated_p2 = rotate(translated_p, revolution);
+            vertices.push(to_screen_space(rotated_p2));
+        }
+        let shape = Polygon::new(&vertices);
+        graphics.draw_polygon(&shape, (0., 0.), Color::WHITE)
     }
-    let shape = Polygon::new(&vertices);
-    graphics.draw_polygon(&shape, (0., 0.), Color::WHITE)
 }
 
 struct MyWindowHandler{
@@ -69,8 +72,8 @@ struct MyWindowHandler{
 
 impl WindowHandler for MyWindowHandler {
     fn on_draw(&mut self, helper: &mut WindowHelper<()>, graphics: &mut Graphics2D) {
-        // graphics.clear_screen(Color::BLACK);
-        draw_gear(&self.gear, self.t, 100, graphics);
+        graphics.clear_screen(Color::BLACK);
+        self.gear.draw(self.t, 100, graphics);
 
         self.t = self.start_t.elapsed().as_secs_f32();
         helper.request_redraw();
@@ -93,9 +96,9 @@ fn main() {
         t: start_t.elapsed().as_secs_f32(),
         gear: Gear {
             f: input_gear_fn,
-            r: 250.,
-            v1: 1.,
-            v2: 1.,
+            axle_separation: 250.,
+            source_w: PI/2.,
+            partner_w: PI/4.,
         }
     });
 }
